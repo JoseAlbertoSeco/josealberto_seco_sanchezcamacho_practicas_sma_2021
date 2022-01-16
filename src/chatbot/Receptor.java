@@ -63,12 +63,39 @@ public class Receptor extends Agent{
 
         }
 
-		
         public int onEnd(){
 			if(contenidoMensaje.equals("apagar")){
 				myAgent.doDelete();
 				return super.onEnd();
 			}
+			return 0;
+        }
+
+    }
+
+	public class EnviarError extends OneShotBehaviour{
+
+		private String contenidoMensaje;
+
+		public EnviarError(String contenidoMensaje){
+			this.contenidoMensaje=contenidoMensaje;
+		}
+
+        public void action(){
+
+            AID id = new AID();
+            id.setLocalName("emisor");
+
+            ACLMessage msg = new ACLMessage(ACLMessage.FAILURE);
+            msg.addReceiver(id);
+            msg.setSender(getAID());
+			msg.setLanguage("Spanish");
+            msg.setContent(contenidoMensaje);
+            send(msg); 
+
+        }
+
+        public int onEnd(){
 			return 0;
         }
 
@@ -98,10 +125,13 @@ public class Receptor extends Agent{
 
             ACLMessage msg = receive(template);
 			if(msg != null){
-				System.out.println("[CHATBOT] Ahora le digo la hora. Un momento, por favor.");
-
-				DateTimeFormatter hora = DateTimeFormatter.ofPattern("HH:mm");
-				addBehaviour(new EnviarRespuesta(hora.format(LocalDateTime.now())));
+				try {
+					System.out.println("[CHATBOT] Ahora le digo la hora. Un momento, por favor.");
+					DateTimeFormatter hora = DateTimeFormatter.ofPattern("HH:mm");
+					addBehaviour(new EnviarRespuesta(hora.format(LocalDateTime.now())));
+				} catch (Exception e) {
+					addBehaviour(new EnviarError("No se ha podido conseguir la hora."));
+				}
 			}
 
         }
@@ -136,27 +166,26 @@ public class Receptor extends Agent{
         public void action(){
             ACLMessage msg = receive(template);
 			if(msg != null){
-				String respuesta = "";
 				if(msg.getContent().length()!=0){
 					System.out.println("[CHATBOT] Vamos a mirar qué dice Wikipedia");
 					try {
-						Document doc = Jsoup.connect("https://en.wikipedia.org/wiki/"+getPersona(msg.getContent())).get();
-						String informacion = doc.select("#mw-content-text > div.mw-parser-output > p").text();
+						Document doc = Jsoup.connect("https://es.wikipedia.org/wiki/"+parsePersona(msg.getContent())).get();
+						String informacion = doc.select("#mw-content-text > div.mw-parser-output > p").first().text();
 						if(informacion!=""){
-							respuesta = informacion;
+							addBehaviour(new EnviarRespuesta(informacion));
+						}else{
+							addBehaviour(new EnviarError("No se ha podido obtener información"));
 						}	
 					} catch (Exception e) {
-						respuesta = "Mmm... Lo siento mucho. Algo salió mal, inténtelo de nuevo.";
+						addBehaviour(new EnviarError("La persona no existe o el webscraping falló"));
 					}
-					
 				} else {
-					respuesta = "Debe poner el nombre de la persona para que pueda buscarlo. Inténtelo de nuevo, por favor.";
+					addBehaviour(new EnviarError("Debe poner el nombre de la persona para que pueda buscarlo. Inténtelo de nuevo, por favor."));
 				}
-				addBehaviour(new EnviarRespuesta(respuesta));
 			}
         }
 
-		public String getPersona(String content){
+		public String parsePersona(String content){
 			String persona="";
 			String[] split = content.split(" ");
 			for (String palabra : split) {
@@ -202,33 +231,37 @@ public class Receptor extends Agent{
 
             ACLMessage msg = receive(template);
 			if(msg != null){
-				String respuesta = "", ruta = "";
+				String ruta = "";
 
 				if(msg.getContent().length()==0){
 					System.out.println("[CHATBOT] Por favor, escriba la ruta con el archivo para crearlo");
 					BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 					try {
 						ruta = reader.readLine();
+						crearArchivo(ruta);
 					} catch (IOException e) {
-						System.out.println("[SYSTEM]  Error en el sistema");
+						addBehaviour(new EnviarError("Problema con la lectura de la ruta."));
 					}
 				}else{
 					ruta = msg.getContent();
+					crearArchivo(ruta);
 				}
 				
-				File archivo = new File(ruta);
-				try {
-					if(archivo.createNewFile()){
-						respuesta = "El archivo ha sido creado.";
-					}else{
-						respuesta = "No se he podido crear el archivo, perdón.";
-					}
-				} catch (IOException e) {
-					respuesta = "He tenido problemas para crear el archivo. Compruebe bien la ruta";				
-				}
-				addBehaviour(new EnviarRespuesta(respuesta));
 			}
         }
+
+		public void crearArchivo(String ruta){
+			File archivo = new File(ruta);
+			try {
+				if(archivo.createNewFile()){
+					addBehaviour(new EnviarRespuesta("El archivo ha sido creado."));
+				}else{
+					addBehaviour(new EnviarError("No se he podido crear el archivo, perdón."));
+				}
+			} catch (IOException e) {
+				addBehaviour(new EnviarError("He tenido problemas para crear el archivo. Compruebe bien la ruta"));
+			}
+		}
 
         @Override
         public boolean done() {
@@ -297,11 +330,15 @@ public class Receptor extends Agent{
         public void action(){
             ACLMessage msg = receive(template);
 			if(msg != null){
-				Scanner sc = new Scanner(msg.getContent());
-				List<ScannedToken> scanExp = sc.scan();
-				Parser parser = new Parser(scanExp);
-				List<ScannedToken> parsed = parser.parse();
-				addBehaviour(new EnviarRespuesta("El resultado es "+String.valueOf(sc.evaluate(parsed))));
+				try {
+					Scanner sc = new Scanner(msg.getContent());
+					List<ScannedToken> scanExp = sc.scan();
+					Parser parser = new Parser(scanExp);
+					List<ScannedToken> parsed = parser.parse();
+					addBehaviour(new EnviarRespuesta("El resultado es "+String.valueOf(sc.evaluate(parsed))));					
+				} catch (Exception e) {
+					addBehaviour(new EnviarError("Problema en el cálculo"));
+				}
 			}
 		}
 
@@ -356,7 +393,7 @@ public class Receptor extends Agent{
 						respuesta -= 1;
 						contador[respuesta] += valores[i][respuesta];
 					} catch (IOException e) {
-						System.out.println("[SYSTEM]  Error en el sistema. Posiblemente haya introducido un caracter no-válido");
+						addBehaviour(new EnviarError("Posiblemente haya introducido un caracter no-válido."));
 					}
 				}
 				for (int i = 0; i < contador.length; i++) {
@@ -414,8 +451,7 @@ public class Receptor extends Agent{
 				}
 			}
 			catch (IOException e) {
-				System.out.println("An error occurred.");
-				e.printStackTrace();
+				addBehaviour(new EnviarError("No se han podido leer los datos"));
 			}
 			String[] array = datos.toArray(new String[0]);
 			return array;
@@ -468,8 +504,7 @@ public class Receptor extends Agent{
 				}
 			}
 			catch (IOException e) {
-				System.out.println("An error occurred.");
-				e.printStackTrace();
+				addBehaviour(new EnviarError("No se han podido leer los datos"));
 			}
 			String[] array = chistes.toArray(new String[0]);
 			return array;
@@ -522,8 +557,7 @@ public class Receptor extends Agent{
 				}
 			}
 			catch (IOException e) {
-				System.out.println("An error occurred.");
-				e.printStackTrace();
+				addBehaviour(new EnviarError("No se han podido leer los datos"));
 			}
 			String[] array = frasesCelebre.toArray(new String[0]);
 			return array;
@@ -570,13 +604,13 @@ public class Receptor extends Agent{
 						for(Element metaTag : metaTags){
 							respuesta += "\n\t - "+metaTag.select("div > h2 > a").text();
 						}
+						addBehaviour(new EnviarRespuesta(respuesta));
 					} catch (IOException e) {
-						respuesta = "Perdóneme, pero ha habido un problema con la búsqueda.";
+						addBehaviour(new EnviarError("Perdóneme, pero no encuentro esa persona o no existe"));
 					}
 				} else {
-					respuesta = "No ha introducido ningún nombre para hacer la búsqueda.";
+					addBehaviour(new EnviarError("No ha introducido ningún nombre para hacer la búsqueda."));
 				}
-				addBehaviour(new EnviarRespuesta(respuesta));
 			}
 		}
 
@@ -636,17 +670,17 @@ public class Receptor extends Agent{
 								respuesta += metaTag.attr("content");
 							}
 						}
+						addBehaviour(new EnviarRespuesta(respuesta));
 					} catch (IOException e) {
-						respuesta = "Perdóneme, pero ha habido un problema con la búsqueda.";
+						addBehaviour(new EnviarError("Perdóneme, pero ha habido un problema con la búsqueda."));
 					}
 
 				} else {
-					respuesta = "No ha introducido ninguna palabra para buscar su definición.";
+					addBehaviour(new EnviarError("No ha introducido ninguna palabra para buscar su definición."));
 				}
 				if(respuesta.isEmpty()){
-					respuesta = "No he encontrado al definición.";
+					addBehaviour(new EnviarError("No he encontrado al definición."));
 				}
-				addBehaviour(new EnviarRespuesta(respuesta));
 			}
         }
 
@@ -677,25 +711,38 @@ public class Receptor extends Agent{
 
         }
 
+        
         public void action(){
 
             ACLMessage msg = receive(template);
 			if(msg != null){
-				String respuesta = "";
-				File archivo = new File(msg.getContent());
+				String ruta = "";
 
-				if(msg.getContent().length()!=0){
-					if(archivo.delete()){
-						respuesta = "El archivo ha sido eliminado.";
-					}else{
-						respuesta = "No se he podido eliminar el archivo, perdón.";
+				if(msg.getContent().length()==0){
+					System.out.println("[CHATBOT] Por favor, escriba la ruta con el archivo para eliminarlo");
+					BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+					try {
+						ruta = reader.readLine();
+						eliminarArchivo(ruta);
+					} catch (IOException e) {
+						addBehaviour(new EnviarError("Problema con la lectura de la ruta."));
 					}
-				} else {
-					respuesta = "No ha introducido la ruta donde quiere eliminar el archivo.";
+				}else{
+					ruta = msg.getContent();
+					eliminarArchivo(ruta);
 				}
-				addBehaviour(new EnviarRespuesta(respuesta));
+				
 			}
         }
+
+		public void eliminarArchivo(String ruta){
+			File archivo = new File(ruta);
+			if(archivo.delete()){
+				addBehaviour(new EnviarRespuesta("El archivo ha sido eliminado."));
+			}else{
+				addBehaviour(new EnviarError("No se he podido eliminar el archivo, perdón."));
+			}
+		}
 
 		@Override
 		public boolean done() {
@@ -727,12 +774,16 @@ public class Receptor extends Agent{
 
             ACLMessage msg = receive(template);
 			if(msg != null){
-				String respuesta = "Pruebe con:";
-				String[][] funcionalidades = generarFuncionalidades();
-				for (String[] funcionalidad : funcionalidades) {
-					respuesta += "\n  - " + funcionalidad[((int)(Math.random()*(funcionalidad.length-1)))];
+				try {
+					String respuesta = "Pruebe con:";
+					String[][] funcionalidades = generarFuncionalidades();
+					for (String[] funcionalidad : funcionalidades) {
+						respuesta += "\n  - " + funcionalidad[((int)(Math.random()*(funcionalidad.length-1)))];
+					}
+					addBehaviour(new EnviarRespuesta(respuesta));					
+				} catch (Exception e) {
+					addBehaviour(new EnviarError("Problema para mostrar las funcionalidades."));
 				}
-				addBehaviour(new EnviarRespuesta(respuesta));
 			}
         }
 

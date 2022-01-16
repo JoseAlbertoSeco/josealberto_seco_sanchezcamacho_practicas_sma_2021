@@ -196,10 +196,10 @@ public class Emisor extends Agent{
             AID id = new AID();
             id.setLocalName("receptor");
 
-            MessageTemplate filtroPerf = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
+			MessageTemplate filtroPerf = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
             MessageTemplate filtroEmis = MessageTemplate.MatchSender(id);
 
-            template = MessageTemplate.and(filtroEmis,filtroPerf);
+            template = MessageTemplate.and(filtroPerf,filtroEmis);
 
         }
 
@@ -226,6 +226,36 @@ public class Emisor extends Agent{
 			}
             return 0;
         }
+
+    }
+
+	public class RecibirError extends SimpleBehaviour{
+
+        MessageTemplate template;
+
+        public RecibirError(){
+
+            AID id = new AID();
+            id.setLocalName("receptor");
+
+			MessageTemplate filtroPerf = MessageTemplate.MatchPerformative(ACLMessage.FAILURE);
+            MessageTemplate filtroEmis = MessageTemplate.MatchSender(id);
+
+            template = MessageTemplate.and(filtroPerf,filtroEmis);
+
+        }
+
+        public void action(){
+            ACLMessage msg = receive(template);
+			if(msg!=null){
+				System.out.println("[CHATBOT] "+msg.getContent());
+				ep.restart();
+			}
+        }
+
+		public boolean done() {
+			return false;
+		}
 
     }
 
