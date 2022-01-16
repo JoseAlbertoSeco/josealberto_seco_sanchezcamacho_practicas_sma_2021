@@ -1,0 +1,46 @@
+ene. 16, 2022 2:31:31 P. M. chatbot.Receptor$BuscarDatoCurioso leerFichero
+INFORMACIÓN: BuscarDatoCurioso -> Datos leídos correctamente
+ene. 16, 2022 2:31:31 P. M. chatbot.Receptor$ContarChiste leerFichero
+INFORMACIÓN: ContarChiste -> Datos leídos correctamente
+ene. 16, 2022 2:31:31 P. M. chatbot.Receptor$BuscarFraseCelebre leerFichero
+INFORMACIÓN: BuscarFraseCelebre -> Datos leídos correctamente
+ene. 16, 2022 2:31:35 P. M. chatbot.Emisor$EnviarPregunta action
+INFORMACIÓN: El usuario ha escrito correctamente
+ene. 16, 2022 2:31:35 P. M. chatbot.Emisor$EnviarPregunta configurarMensaje
+INFORMACIÓN: Mensaje creado correctamente
+ene. 16, 2022 2:31:35 P. M. chatbot.Emisor$EnviarPregunta action
+INFORMACIÓN: Petición <<dime la hora>> enviada al Receptor
+ene. 16, 2022 2:31:35 P. M. chatbot.Receptor$MostrarHoraUsuario action
+INFORMACIÓN: MostrarHoraUsuario enviando <<14:31>>
+ene. 16, 2022 2:31:35 P. M. chatbot.Receptor$EnviarRespuesta action
+INFORMACIÓN: Respuesta enviada <<14:31>>
+ene. 16, 2022 2:31:35 P. M. chatbot.Emisor$RecibirRespuesta action
+INFORMACIÓN: Respuesta recibida correctamente
+ene. 16, 2022 2:31:55 P. M. chatbot.Emisor$EnviarPregunta action
+INFORMACIÓN: El usuario ha escrito correctamente
+ene. 16, 2022 2:31:55 P. M. chatbot.Emisor$EnviarPregunta configurarMensaje
+INFORMACIÓN: Mensaje creado correctamente
+ene. 16, 2022 2:31:55 P. M. chatbot.Emisor$EnviarPregunta action
+INFORMACIÓN: Petición <<quien es ludwin van beethoven>> enviada al Receptor
+ene. 16, 2022 2:31:57 P. M. chatbot.Receptor$MostrarInformacionPersona action
+ADVERTENCIA: MostrarInformacionPersona no encontró la persona o el webscraping falló
+ene. 16, 2022 2:31:57 P. M. chatbot.Receptor$EnviarError action
+INFORMACIÓN: Error enviado <<La persona no existe o el webscraping falló>>
+ene. 16, 2022 2:31:57 P. M. chatbot.Emisor$RecibirRespuesta action
+ADVERTENCIA: Recibido mensaje de error
+ene. 16, 2022 2:32:03 P. M. chatbot.Emisor$EnviarPregunta action
+INFORMACIÓN: El usuario ha escrito correctamente
+ene. 16, 2022 2:32:03 P. M. chatbot.Emisor$EnviarPregunta configurarMensaje
+INFORMACIÓN: Mensaje creado correctamente
+ene. 16, 2022 2:32:03 P. M. chatbot.Emisor$EnviarPregunta action
+INFORMACIÓN: Petición <<adios>> enviada al Receptor
+ene. 16, 2022 2:32:03 P. M. chatbot.Receptor$EnviarRespuesta action
+INFORMACIÓN: Respuesta enviada <<apagar>>
+ene. 16, 2022 2:32:03 P. M. chatbot.Emisor$RecibirRespuesta action
+INFORMACIÓN: Mensaje de <<apagar>> recibido
+ene. 16, 2022 2:32:03 P. M. chatbot.Emisor$RecibirRespuesta onEnd
+INFORMACIÓN: Orden de apagar el agente
+ene. 16, 2022 2:32:03 P. M. chatbot.Receptor takeDown
+INFORMACIÓN: AGENTE APAGADO
+ene. 16, 2022 2:32:03 P. M. chatbot.Emisor takeDown
+INFORMACIÓN: AGENTE APAGADO
