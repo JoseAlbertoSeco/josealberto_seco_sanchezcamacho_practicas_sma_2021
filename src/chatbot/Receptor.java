@@ -15,15 +15,37 @@ import jade.lang.acl.MessageTemplate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.StringTokenizer;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.util.ArrayList;
 import java.io.*;
 
 
 public class Receptor extends Agent{
 
+	private final static Logger logger = Logger.getLogger(Emisor.class.getName());
+	FileHandler fh;
+
 	protected void setup() {
-		
+		logger.setUseParentHandlers(false);
+		LocalDateTime now = LocalDateTime.now();
+		String ruta = "/home/user/jade/src/chatbot/logs/"+now.format(DateTimeFormatter.ofPattern("dd-MM-yyyy_HH:mm:ss"));
+		File archivo = new File(ruta);
+		try {
+			archivo.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		try {
+			fh = new FileHandler(ruta);
+			logger.addHandler(fh);
+			SimpleFormatter formatter = new SimpleFormatter();
+			fh.setFormatter(formatter);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		addBehaviour(new MostrarHoraUsuario());
 		addBehaviour(new MostrarInformacionPersona());
 		addBehaviour(new CrearArchivoNombre());
@@ -34,6 +56,7 @@ public class Receptor extends Agent{
 
 		addBehaviour(new BuscarDatoCurioso());
 		addBehaviour(new ContarChiste());
+		addBehaviour(new EliminarArchivoNombre());
 		addBehaviour(new BuscarFraseCelebre());
 		addBehaviour(new BuscarDefinicion());	
 		addBehaviour(new MostrarPeliculasActor());
@@ -59,6 +82,7 @@ public class Receptor extends Agent{
             msg.setSender(getAID());
 			msg.setLanguage("Spanish");
             msg.setContent(contenidoMensaje);
+			logger.info("Respuesta enviada <<"+msg.getContent()+">>");
             send(msg); 
 
         }
@@ -91,6 +115,7 @@ public class Receptor extends Agent{
             msg.setSender(getAID());
 			msg.setLanguage("Spanish");
             msg.setContent(contenidoMensaje);
+			logger.info("Error enviado <<"+msg.getContent()+">>");
             send(msg); 
 
         }
@@ -128,8 +153,10 @@ public class Receptor extends Agent{
 				try {
 					System.out.println("[CHATBOT] Ahora le digo la hora. Un momento, por favor.");
 					DateTimeFormatter hora = DateTimeFormatter.ofPattern("HH:mm");
+					logger.info("MostrarHoraUsuario enviando <<"+hora.format(LocalDateTime.now())+">>");
 					addBehaviour(new EnviarRespuesta(hora.format(LocalDateTime.now())));
 				} catch (Exception e) {
+					logger.warning("Ha habido un problema con la hora");
 					addBehaviour(new EnviarError("No se ha podido conseguir la hora."));
 				}
 			}
@@ -172,14 +199,18 @@ public class Receptor extends Agent{
 						Document doc = Jsoup.connect("https://es.wikipedia.org/wiki/"+parsePersona(msg.getContent())).get();
 						String informacion = doc.select("#mw-content-text > div.mw-parser-output > p").first().text();
 						if(informacion!=""){
+							logger.info("MostrarInformacionPersona envió <<"+informacion+">>");
 							addBehaviour(new EnviarRespuesta(informacion));
 						}else{
+							logger.warning("MostrarInformacionPersona no obtuvo información");
 							addBehaviour(new EnviarError("No se ha podido obtener información"));
 						}	
 					} catch (Exception e) {
+						logger.warning("MostrarInformacionPersona no encontró la persona o el webscraping falló");
 						addBehaviour(new EnviarError("La persona no existe o el webscraping falló"));
 					}
 				} else {
+					logger.severe("MostrarInformacionPersona no se ha escrito un nombre");
 					addBehaviour(new EnviarError("Debe poner el nombre de la persona para que pueda buscarlo. Inténtelo de nuevo, por favor."));
 				}
 			}
@@ -240,6 +271,7 @@ public class Receptor extends Agent{
 						ruta = reader.readLine();
 						crearArchivo(ruta);
 					} catch (IOException e) {
+						logger.severe("CrearArchivoNombre -> Problema con la lectura de la ruta.");
 						addBehaviour(new EnviarError("Problema con la lectura de la ruta."));
 					}
 				}else{
@@ -254,11 +286,14 @@ public class Receptor extends Agent{
 			File archivo = new File(ruta);
 			try {
 				if(archivo.createNewFile()){
+					logger.info("CrearArchivoNombre -> El archivo ha sido creado.");
 					addBehaviour(new EnviarRespuesta("El archivo ha sido creado."));
 				}else{
+					logger.warning("CrearArchivoNombre -> No se he podido crear el archivo, perdón.");
 					addBehaviour(new EnviarError("No se he podido crear el archivo, perdón."));
 				}
 			} catch (IOException e) {
+				logger.severe("CrearArchivoNombre -> He tenido problemas para crear el archivo");
 				addBehaviour(new EnviarError("He tenido problemas para crear el archivo. Compruebe bien la ruta"));
 			}
 		}
@@ -335,8 +370,10 @@ public class Receptor extends Agent{
 					List<ScannedToken> scanExp = sc.scan();
 					Parser parser = new Parser(scanExp);
 					List<ScannedToken> parsed = parser.parse();
+					logger.info("CalcularOperacion -> El resultado es "+String.valueOf(sc.evaluate(parsed)));
 					addBehaviour(new EnviarRespuesta("El resultado es "+String.valueOf(sc.evaluate(parsed))));					
 				} catch (Exception e) {
+					logger.warning("CalcularOperacion -> Problema en el cálculo");
 					addBehaviour(new EnviarError("Problema en el cálculo"));
 				}
 			}
@@ -393,6 +430,7 @@ public class Receptor extends Agent{
 						respuesta -= 1;
 						contador[respuesta] += valores[i][respuesta];
 					} catch (IOException e) {
+						logger.severe("TestGamer -> Posiblemente haya introducido un caracter no-válido.");
 						addBehaviour(new EnviarError("Posiblemente haya introducido un caracter no-válido."));
 					}
 				}
@@ -400,6 +438,7 @@ public class Receptor extends Agent{
 					//System.out.println(contador[i]);
 					maxAt = contador[i] > contador[maxAt] ? i : maxAt;
 				}
+				logger.info("TestGamer -> Eres un Gamer de tipo "+tipoGamer[maxAt]);
 				addBehaviour(new EnviarRespuesta("Eres un Gamer de tipo "+tipoGamer[maxAt]));
 			}
 		}
@@ -436,6 +475,7 @@ public class Receptor extends Agent{
         public void action(){
             ACLMessage msg = receive(template);
 			if(msg != null){
+				logger.info("BuscarDatoCurioso -> Dato curioso enviado");
 				addBehaviour(new EnviarRespuesta(datosCuriosos[((int)(Math.random()*(datosCuriosos.length-1)))]));
 			}
 		}
@@ -449,8 +489,10 @@ public class Receptor extends Agent{
 				while ((line = br.readLine()) != null) {
 					datos.add(line);
 				}
+				logger.info("BuscarDatoCurioso -> Datos leídos correctamente");
 			}
 			catch (IOException e) {
+				logger.severe("BuscarDatoCurioso -> No se han podido leer los datos");
 				addBehaviour(new EnviarError("No se han podido leer los datos"));
 			}
 			String[] array = datos.toArray(new String[0]);
@@ -489,6 +531,7 @@ public class Receptor extends Agent{
         public void action(){
             ACLMessage msg = receive(template);
 			if(msg != null){
+				logger.info("ContarChiste -> Chiste enviado");
 				addBehaviour(new EnviarRespuesta(chistes[((int)(Math.random()*(chistes.length-1)))]));
 			}
 		}
@@ -502,8 +545,10 @@ public class Receptor extends Agent{
 				while ((line = br.readLine()) != null) {
 					chistes.add(line);
 				}
+				logger.info("ContarChiste -> Datos leídos correctamente");
 			}
 			catch (IOException e) {
+				logger.severe("ContarChiste -> No se han podido leer los datos");
 				addBehaviour(new EnviarError("No se han podido leer los datos"));
 			}
 			String[] array = chistes.toArray(new String[0]);
@@ -542,6 +587,7 @@ public class Receptor extends Agent{
         public void action(){
             ACLMessage msg = receive(template);
 			if(msg != null){
+				logger.info("BuscarFraseCelebre -> Frase Celebre enviado");
 				addBehaviour(new EnviarRespuesta(frasesCelebre[((int)(Math.random()*(frasesCelebre.length-1)))]));
 			}
 		}
@@ -555,8 +601,10 @@ public class Receptor extends Agent{
 				while ((line = br.readLine()) != null) {
 					frasesCelebre.add(line);
 				}
+				logger.info("BuscarFraseCelebre -> Datos leídos correctamente");
 			}
 			catch (IOException e) {
+				logger.severe("BuscarFraseCelebre -> No se han podido leer los datos");
 				addBehaviour(new EnviarError("No se han podido leer los datos"));
 			}
 			String[] array = frasesCelebre.toArray(new String[0]);
@@ -595,8 +643,9 @@ public class Receptor extends Agent{
 			String respuesta = "";
 			if(msg != null){
 				if(msg.getContent().length()!=0){
+					String persona = getPersona(msg.getContent());
 					try {
-						Connection c = Jsoup.connect("https://lahiguera.net/cinemania/actores/"+getPersona(msg.getContent())+"/peliculas.php");
+						Connection c = Jsoup.connect("https://lahiguera.net/cinemania/actores/"+persona+"/peliculas.php");
 						c.userAgent("Mozilla/5.0");
 						Document doc = c.get();
 						Elements metaTags = doc.getElementsByTag("article");
@@ -604,11 +653,14 @@ public class Receptor extends Agent{
 						for(Element metaTag : metaTags){
 							respuesta += "\n\t - "+metaTag.select("div > h2 > a").text();
 						}
+						logger.info("MostrarPeliculasActor -> Lista de películas de "+persona+" enviadas");
 						addBehaviour(new EnviarRespuesta(respuesta));
 					} catch (IOException e) {
+						logger.warning("MostrarPeliculasActor -> no encuentro esa persona o no existe");
 						addBehaviour(new EnviarError("Perdóneme, pero no encuentro esa persona o no existe"));
 					}
 				} else {
+					logger.severe("MostrarPeliculasActor -> No se ha introducido ningún nombre para hacer la búsqueda.");
 					addBehaviour(new EnviarError("No ha introducido ningún nombre para hacer la búsqueda."));
 				}
 			}
@@ -670,15 +722,19 @@ public class Receptor extends Agent{
 								respuesta += metaTag.attr("content");
 							}
 						}
+						logger.info("BuscarDefinicion -> enviando definición de "+msg.getContent());
 						addBehaviour(new EnviarRespuesta(respuesta));
 					} catch (IOException e) {
+						logger.warning("BuscarDefinicion -> ha habido un problema con la búsqueda.");
 						addBehaviour(new EnviarError("Perdóneme, pero ha habido un problema con la búsqueda."));
 					}
 
 				} else {
+					logger.severe("BuscarDefinicion -> No ha introducido ninguna palabra para buscar su definición.");
 					addBehaviour(new EnviarError("No ha introducido ninguna palabra para buscar su definición."));
 				}
 				if(respuesta.isEmpty()){
+					logger.warning("BuscarDefinicion -> No he encontrado al definición.");
 					addBehaviour(new EnviarError("No he encontrado al definición."));
 				}
 			}
@@ -711,7 +767,6 @@ public class Receptor extends Agent{
 
         }
 
-        
         public void action(){
 
             ACLMessage msg = receive(template);
@@ -725,6 +780,7 @@ public class Receptor extends Agent{
 						ruta = reader.readLine();
 						eliminarArchivo(ruta);
 					} catch (IOException e) {
+						logger.severe("EliminarArchivoNombre -> Problema con la lectura de la ruta.");
 						addBehaviour(new EnviarError("Problema con la lectura de la ruta."));
 					}
 				}else{
@@ -738,17 +794,20 @@ public class Receptor extends Agent{
 		public void eliminarArchivo(String ruta){
 			File archivo = new File(ruta);
 			if(archivo.delete()){
+				logger.info("EliminarArchivoNombre -> El archivo ha sido eliminado.");
 				addBehaviour(new EnviarRespuesta("El archivo ha sido eliminado."));
 			}else{
+				logger.warning("EliminarArchivoNombre -> No se he podido eliminar el archivo.");
 				addBehaviour(new EnviarError("No se he podido eliminar el archivo, perdón."));
 			}
 		}
 
-		@Override
-		public boolean done() {
-			return false;
-		}
-	}
+        @Override
+        public boolean done() {
+            return false;
+        }
+
+    }
 
 	public class AyudaConsultas extends SimpleBehaviour{
 
@@ -780,8 +839,10 @@ public class Receptor extends Agent{
 					for (String[] funcionalidad : funcionalidades) {
 						respuesta += "\n  - " + funcionalidad[((int)(Math.random()*(funcionalidad.length-1)))];
 					}
+					logger.info("AyudaConsultas -> Lista de ayuda enviada.");
 					addBehaviour(new EnviarRespuesta(respuesta));					
 				} catch (Exception e) {
+					logger.severe("Problema para mostrar las funcionalidades");
 					addBehaviour(new EnviarError("Problema para mostrar las funcionalidades."));
 				}
 			}
@@ -824,8 +885,8 @@ public class Receptor extends Agent{
 		}
 	}
 
-
 	protected void takeDown(){
+		logger.info("AGENTE APAGADO");
 		System.out.println("[CHATBOT] Espero que le haya sido de gran ayuda!!");
 	} 
 }

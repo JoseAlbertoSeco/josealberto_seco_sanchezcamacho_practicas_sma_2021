@@ -1,24 +1,51 @@
 package chatbot;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Scanner;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
 
 import jade.core.AID;
 import jade.core.Agent;
-import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.SimpleBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
-import jade.proto.SimpleAchieveREInitiator;
 
 
 public class Emisor extends Agent{ 
 	
 	protected EnviarPregunta ep = new EnviarPregunta();
+	private final static Logger logger = Logger.getLogger(Emisor.class.getName());
+	FileHandler fh;
 
 	protected void setup() {
+		logger.setUseParentHandlers(false);/*
+		LocalDateTime now = LocalDateTime.now();
+		String ruta = "/home/user/jade/src/chatbot/logs/"+now.format(DateTimeFormatter.ofPattern("dd-MM-yyyy_HH:mm:ss"));
+		File archivo = new File(ruta);
+		try {
+			archivo.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		try {
+			fh = new FileHandler(ruta);
+			logger.addHandler(fh);
+			SimpleFormatter formatter = new SimpleFormatter();
+			fh.setFormatter(formatter);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}*/
+
+		logger.info("Logger name: "+logger.getName());
 		addBehaviour(ep);
 		addBehaviour(new RecibirRespuesta());
 	}
@@ -49,15 +76,19 @@ public class Emisor extends Agent{
 			String peticion="";
 			try {
 				peticion = reader.readLine();
+				logger.info("El usuario ha escrito correctamente");
 			} catch (IOException e) {
-				System.out.println("[SYSTEM]  Error en el sistema");
+				System.out.println("[SYSTEM]  Error en escritura por línea de comandos");
+				logger.log(Level.SEVERE, "Error en escritura por línea de comandos", e);
 			}
 			ACLMessage msg = generarMensaje(peticion);
 
 			if(msg == null){
 				System.out.println("[CHATBOT] "+respuestas[((int)(Math.random()*(respuestas.length-1)))]);
+				logger.warning("No ha encontrado la orden");
 			}else{
 				send(msg);
+				logger.info("Petición <<"+peticion+">> enviada al Receptor");
 				block();
 			}
 
@@ -144,11 +175,13 @@ public class Emisor extends Agent{
 							default: protocolo = "error";
 						}
 						msg.setProtocol(protocolo);
+						logger.info("Mensaje creado correctamente");
 						return msg;	
 					}
 				}
 				opcion++;				
 			}
+			logger.warning("Problema al crear el mensaje");
 			return null;
 		}
 
@@ -196,20 +229,25 @@ public class Emisor extends Agent{
             AID id = new AID();
             id.setLocalName("receptor");
 
-			MessageTemplate filtroPerf = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
-            MessageTemplate filtroEmis = MessageTemplate.MatchSender(id);
-
-            template = MessageTemplate.and(filtroPerf,filtroEmis);
+			template = MessageTemplate.MatchSender(id);
 
         }
 
         public void action(){
             ACLMessage msg = receive(template);
 			if(msg!=null){
-				if(msg.getContent().equals("apagar")){
-					apagar = true;
-					control = true;
-				}else{
+				if(msg.getPerformative()==ACLMessage.INFORM){
+					if(msg.getContent().equals("apagar")){
+						logger.info("Mensaje de <<apagar>> recibido");
+						apagar = true;
+						control = true;
+					}else{
+						logger.info("Respuesta recibida correctamente");
+						System.out.println("[CHATBOT] "+msg.getContent());
+						ep.restart();
+					}
+				}else if(msg.getPerformative()==ACLMessage.FAILURE){
+					logger.warning("Recibido mensaje de error");
 					System.out.println("[CHATBOT] "+msg.getContent());
 					ep.restart();
 				}
@@ -222,6 +260,7 @@ public class Emisor extends Agent{
 
         public int onEnd(){
 			if(apagar){
+				logger.info("Orden de apagar el agente");
 				myAgent.doDelete();
 			}
             return 0;
@@ -229,37 +268,8 @@ public class Emisor extends Agent{
 
     }
 
-	public class RecibirError extends SimpleBehaviour{
-
-        MessageTemplate template;
-
-        public RecibirError(){
-
-            AID id = new AID();
-            id.setLocalName("receptor");
-
-			MessageTemplate filtroPerf = MessageTemplate.MatchPerformative(ACLMessage.FAILURE);
-            MessageTemplate filtroEmis = MessageTemplate.MatchSender(id);
-
-            template = MessageTemplate.and(filtroPerf,filtroEmis);
-
-        }
-
-        public void action(){
-            ACLMessage msg = receive(template);
-			if(msg!=null){
-				System.out.println("[CHATBOT] "+msg.getContent());
-				ep.restart();
-			}
-        }
-
-		public boolean done() {
-			return false;
-		}
-
-    }
-
 	protected void takeDown(){
+		logger.info("AGENTE APAGADO");
 		System.out.println("[SYSTEM] Apagando...");
 		System.out.println("[SYSTEM] ChatBot apagado.");
 	} 
